@@ -53,6 +53,7 @@ setup(
         ],
         'jiggl.app': [
             'log = jiggl.commands.log:SimpleLog',
+            'login = jiggl.commands.login:Login',
         ],
     },
 
