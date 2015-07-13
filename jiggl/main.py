@@ -1,27 +1,16 @@
 from collections import defaultdict
 from datetime import timedelta
-import functools
 import json
 import os
-import re
-
 from PyToggl.PyToggl import PyToggl
-import requests
-
-# from ggl import JIGGLD
-# from ji import jira_project_keys
+from jira import JIRA
 from jiggl.clean import validate_one
-from jiggl.utils import has_no_error, get_val
-from jiggl.utils import has_error
+from jiggl.monkey import monkey_pytoggl
+from jiggl.utils import has_no_error, get_val, has_error
+from jiggl import settings
+from jiggl.colors import bcolors
 
-try:
-    from jiggl import settings
-    from jiggl.colors import bcolors
-except ImportError:
-    # for when we invoke the script directly
-    import settings
-    from colors import bcolors
-
+PyToggl = monkey_pytoggl(PyToggl)
 
 def get_entries():
     current_path = os.path.dirname(os.path.realpath(__file__))
@@ -29,35 +18,21 @@ def get_entries():
         return json.load(f)
 
 
-def _query(self, url, params, method, query_type=None, return_type='json'):
-    if query_type == 'report':
-        api_url = self.api_reports_url + url
-    else:
-        api_url = self.api_url + url
+class Jiggl(object):
+    def __init__(self):
+        self.toggl = PyToggl(settings.TOGGL_API_TOKEN)
 
-    auth = (self.api_token, 'api_token')
-    headers = {'content-type': 'application/json'}
-
-    if method == "POST":
-        response = requests.post(api_url, auth=auth, headers=headers, params=params)
-    elif method == "GET":
-        response = requests.get(api_url, auth=auth, headers=headers, params=params)
-    elif method == "PUT":
-        response = requests.put(api_url, auth=auth, headers=headers, params=params)
-    else:
-        raise UserWarning('GET or POST or PUT are the only supported request methods.')
-
-    # If the response errored, raise for that.
-    if response.status_code != requests.codes.ok:
-        response.raise_for_status()
-
-    if return_type == 'json':
-        return response.json()
-    else:
-        return response
-
-
-PyToggl._query = _query
+    _jira = None
+    @property
+    def jira(self):
+        """
+        Lazy-load the JIRA client, because it makes a bunch of requests when you instantiate the class
+        because that's cool to do right?
+        :rtype: JIRA
+        """
+        if not self._jira:
+            self._jira = JIRA(server=settings.JIRA_URL, basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD))
+        return self._jira
 
 
 def get_total_duration(data):
