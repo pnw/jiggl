@@ -1,13 +1,18 @@
 import json
 import os
+from PyToggl.PyToggl import PyToggl
 from cliff.command import Command
+from jira import JIRA
+from jira.utils import JIRAError
+from requests.exceptions import HTTPError
 from jiggl.colors import bcolors
 from jiggl.settings import settings_filepath
 
 
 def cls():
     """Simply clears the screen"""
-    os.system(['clear','cls'][os.name == 'nt'])
+    os.system(['clear', 'cls'][os.name == 'nt'])
+
 
 class Credentials(object):
     toggl_api_token = ''
@@ -37,12 +42,6 @@ class Credentials(object):
         with open(settings_filepath, 'w') as f:
             json.dump(self.__dict__, f, indent=4)
 
-    def say_goodbye(self):
-        print bcolors.header('\nDone!')
-
-        # print '\nJiggl login credentials saved to', settings_filepath
-        # print 'You may now use Jiggl!'
-
     def say_hi(self):
         cls()
         print bcolors.header('Welcome to Jiggl!\n')
@@ -50,12 +49,39 @@ class Credentials(object):
               'Your credentials will be stored in the file ' \
               'located at:\n\n' + bcolors.bold(settings_filepath)
 
+    def say_goodbye(self):
+        print bcolors.header('\nDone!')
+
+    def check_toggl(self):
+        """
+        Make sure the user has entered a correct toggl token
+        """
+        print '\nChecking your Toggl credentials...'
+        toggl = PyToggl(self.toggl_api_token)
+        try:
+            toggl.query('/me')
+        except HTTPError:
+            raise RuntimeError(bcolors.fail('Invalid Toggl API token.'))
+        print bcolors.okblue('Success!')
+
+    def check_jira(self):
+        """
+        Make sure the user has entered correct jira credentials
+        """
+        print '\nChecking your Jira credentials...'
+        try:
+            # Jira automatically does a credentials check when you instantiate the class
+            JIRA(self.jira_url, basic_auth=(self.jira_username, self.jira_password))
+        except JIRAError:
+            raise RuntimeError(bcolors.fail('Invalid Jira credentials.'))
+        print bcolors.okblue('Success!')
+
     def procure_toggl(self):
         print bcolors.header('\n\nToggl\n')
         print 'To read your Toggl feed, I just need an API token.\n' \
               'Your Toggl API token can be found at ' \
               'the bottom of your profile page:' \
-              '\n\n' + bcolors.bold('https://www.toggl.com/app/profile') +'\n\n'
+              '\n\n' + bcolors.bold('https://www.toggl.com/app/profile') + '\n\n'
 
         if self.toggl_api_token:
             toggl_token = raw_input('Toggl token (enter to use existing): ')
@@ -92,13 +118,12 @@ class Credentials(object):
         if jira_username:
             self.jira_username = jira_username
 
-
         if self.jira_password:
             jira_password = raw_input('Jira Password (enter to use existing): ')
         else:
             jira_password = None
             while not jira_password:
-               jira_password = raw_input('Jira Password: ')
+                jira_password = raw_input('Jira Password: ')
         if jira_password:
             self.jira_password = jira_password
 
@@ -106,12 +131,14 @@ class Credentials(object):
         self.say_hi()
 
         self.procure_toggl()
+        self.check_toggl()
         self.persist()
 
         self.procure_jira()
+        self.check_jira()
         self.persist()
-        self.say_goodbye()
 
+        self.say_goodbye()
 
 
 class Login(Command):
@@ -121,4 +148,3 @@ class Login(Command):
 
     def take_action(self, parsed_args):
         Credentials().run()
-
