@@ -7,7 +7,8 @@ CLI Tool for bulk-importing Toggl timesheet entries into the Jira timesheet logg
 $ git clone https://github.com/pnw/jiggl.git
 $ cd jiggl
 $ python setup.py install
-$ jiggl log
+$ jiggl login
+$ jiggl help
 ```
 
 ## Uninstallation
