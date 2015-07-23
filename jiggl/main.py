@@ -2,8 +2,10 @@ from collections import defaultdict
 from datetime import timedelta
 import json
 import os
+from pprint import pprint
 from PyToggl.PyToggl import PyToggl
 from jira import JIRA
+import toolz
 from jiggl.clean import validate_one
 from jiggl.monkey import monkey_pytoggl
 from jiggl.utils import has_no_error, get_val, has_error
@@ -106,10 +108,14 @@ def log_invalid_entries(invalid_entries):
 
 
 def split(m_entries):
-    valid_entries = filter(has_no_error, m_entries)
-    invalid_entries = filter(has_error, m_entries)
-
-    return map(get_val, valid_entries), invalid_entries
+    """
+    :param m_entries: a list of (entry, err) tuples
+    :type m_entries: list
+    :return: tuple(valid_entries, invalid_entries)
+    :rtype: tuple
+    """
+    m_split = toolz.groupby(has_error, m_entries)
+    return m_split[True], m_split[False]
 
 
 def main():

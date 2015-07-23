@@ -52,8 +52,15 @@ setup(
             'jiggl = jiggl.app:main'
         ],
         'jiggl.app': [
-            'log = jiggl.commands.log:SimpleLog',
             'login = jiggl.commands.login:Login',
+            'curse = jiggl.commands.curse:Curse',
+            'view day = jiggl.commands.log:SimpleLog',
+            'view week = jiggl.commands.log:SimpleLog',
+            'view range = jiggl.commands.log:SimpleLog',
+            'log day = jiggl.commands.log:SimpleLog',
+            'log week = jiggl.commands.log:SimpleLog',
+            'log range = jiggl.commands.log:SimpleLog',
+
         ],
     },
 
