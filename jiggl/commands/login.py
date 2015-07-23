@@ -1,17 +1,15 @@
 import json
 import os
+
 from PyToggl.PyToggl import PyToggl
 from cliff.command import Command
 from jira import JIRA
 from jira.utils import JIRAError
 from requests.exceptions import HTTPError
+
 from jiggl.colors import bcolors
 from jiggl.settings import settings_filepath
-
-
-def cls():
-    """Simply clears the screen"""
-    os.system(['clear', 'cls'][os.name == 'nt'])
+from utils import clear_screen
 
 
 class Credentials(object):
@@ -43,7 +41,7 @@ class Credentials(object):
             json.dump(self.__dict__, f, indent=4)
 
     def say_hi(self):
-        cls()
+        clear_screen()
         print bcolors.header('Welcome to Jiggl!\n')
         print 'To use Jiggl, I\'ll need your credentials to both Jiggl and Toggl.\n' \
               'Your credentials will be stored in the file ' \

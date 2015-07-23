@@ -1,18 +1,21 @@
-from collections import defaultdict
-from datetime import timedelta
 import json
 import os
-from pprint import pprint
+
 from PyToggl.PyToggl import PyToggl
+from datetime import timedelta
 from jira import JIRA
-import toolz
-from jiggl.clean import validate_one
+import curried_toolz as z
+from toolz.compatibility import iteritems
+
+from jiggl.clean import validate_many
 from jiggl.monkey import monkey_pytoggl
-from jiggl.utils import has_no_error, get_val, has_error
+from jiggl.utils import has_error, clear_screen
 from jiggl import settings
 from jiggl.colors import bcolors
+from utils import get_error, get_val
 
 PyToggl = monkey_pytoggl(PyToggl)
+
 
 def get_entries():
     current_path = os.path.dirname(os.path.realpath(__file__))
@@ -25,6 +28,7 @@ class Jiggl(object):
         self.toggl = PyToggl(settings.TOGGL_API_TOKEN)
 
     _jira = None
+
     @property
     def jira(self):
         """
@@ -45,21 +49,38 @@ def get_total_duration(data):
 def split_description(group):
     description, entries = group
     parts = description.split(' ', 1)
-    # Allow for descriptions without
+    # Allow for descriptions with a Jira task identifier but no accomanying description
     if len(parts) > 1:
         return parts, entries
     return (parts[0], ''), entries
 
 
-def group_by_description(entries):
-    """
-    :param entries: entries from the Toggl API
-    :return: list of two-tuples: the description, and the list of entries for the day
-    """
-    ret = defaultdict(list)
-    for e in entries:
-        ret[e['description']].append(e)
-    return sorted(ret.items())
+get_duration = z.get('duration')
+get_description = z.get('description', default='')
+
+
+def print_error_group((err, entries)):
+    print
+    print bcolors.bold(bcolors.underline(err))
+    print '\n'.join(map(str, [e.get('description', e['id']) for e in entries]))
+    print
+
+
+log_invalid_entries = z.compose(
+    z.map(print_error_group),
+    iteritems,
+    z.valmap(z.map(get_val)),
+    z.groupby(get_error),
+)
+
+get_valid_invalid = z.get([False, True])
+group_by_has_error = z.groupby(has_error)
+
+split_entries = z.compose(
+    get_valid_invalid,
+    group_by_has_error,
+    validate_many,
+)
 
 
 def group_by_day(entries):
@@ -68,70 +89,14 @@ def group_by_day(entries):
     :return: list of two-tuples: the day, and the list of entries for the day
     """
 
-
 def total_duration(entries):
-    return sum(e['duration'] for e in entries)
+    return sum(z.map(get_duration, entries))
 
 
-def log_invalid_entries(invalid_entries):
-    """
-    *********
-    * Invalid Description *
-    :param invalid_entries:
-    :return:
-    """
-    invalid_entries = [(err, val) for (val, err) in invalid_entries]
-    errs = defaultdict(list)
-    for err, val in invalid_entries:
-        errs[err].append(val)
-
-    # to_log = list()
-    # for err, entries in errs.iteritems():
-    #     to_log.append('\n'.join(['%s : %s' % (err, entry.get('description', entry.get('id', '--'))) for entry in entries]))
-    #
-    # print '\n*********\n'
-    # print '\n\n'.join(to_log)
-    # print '\n*********\n'
-
-
-    for err, entries in errs.iteritems():
-        l = len(err)
-        print
-        print bcolors.bold(bcolors.underline(err))
-        # print bcolors.UNDERLINE + err, '\n'
-        # print
-        # border = '*' * (len(err) + 4)
-
-        # print '\n' + border + '\n* ' + str(err) + ' *\n' + border + '\n'
-        print '\n'.join(map(str, [e.get('description', e['id']) for e in entries]))
-        print
-
-
-def split(m_entries):
-    """
-    :param m_entries: a list of (entry, err) tuples
-    :type m_entries: list
-    :return: tuple(valid_entries, invalid_entries)
-    :rtype: tuple
-    """
-    m_split = toolz.groupby(has_error, m_entries)
-    return m_split[True], m_split[False]
-
-
-def main():
-    # toggl = PyToggl(settings.TOGGL_API_TOKEN)
-    # jira = JIRA()
-    # entries = toggl.query('/time_entries')
-    entries = get_entries()
-    m_entries = map(validate_one, entries)
-
-    valid_entries, invalid_entries = split(m_entries)
-
-    log_invalid_entries(invalid_entries)
-
+def log_valid_entries(entries):
     print bcolors.header(bcolors.underline('\nLogging to Jira\n'))
 
-    groups = group_by_description(valid_entries)
+    groups = z.groupby(get_description, entries)
     cleaned = map(split_description, groups)
 
     for (issue, comment), entries in cleaned:
@@ -142,8 +107,23 @@ def main():
 
     summed = map(get_total_duration, cleaned)
 
-    entry_ids = ','.join(map(str, [e['id'] for e in valid_entries]))
-    # toggl.query('/time_entries/%s' % entry_ids, )
+    entry_ids = ','.join(map(str, [e['id'] for e in entries]))
+
+
+
+def main():
+    # toggl = PyToggl(settings.TOGGL_API_TOKEN)
+    # jira = JIRA()
+    # entries = toggl.query('/time_entries')
+    entries = get_entries()
+
+    valid_entries, invalid_entries = split_entries(entries)
+
+    log_invalid_entries(invalid_entries)
+    log_valid_entries(valid_entries)
+
+
+    #
 
 
 
@@ -151,3 +131,8 @@ def main():
 
 
     # jira.add_worklog('SARR-128', timeSpentSeconds=60, comment='Test!')
+
+
+if __name__ == '__main__':
+    clear_screen()
+    main()

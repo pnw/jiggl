@@ -1,18 +1,6 @@
-import functools
 import re
-from jiggl.utils import error, success, bind, unit, compose
-
-
-def m_map(mf, mvals):
-    return map(functools.partial(bind, mf), mvals)
-
-
-def validate_many(entries):
-    m_entries = map(unit, entries)
-    m_entries = m_map(is_not_already_logged, m_entries)
-    m_entries = m_map(is_not_currently_logging, m_entries)
-    m_entries = m_map(is_valid_description, m_entries)
-    return m_entries
+import toolz as z
+from jiggl.utils import error, success, bind, unit
 
 
 def is_not_already_logged(entry):
@@ -21,7 +9,7 @@ def is_not_already_logged(entry):
     return success(entry)
 
 
-m_is_not_already_logged = functools.partial(bind, is_not_already_logged)
+m_is_not_already_logged = bind(is_not_already_logged)
 
 
 def is_not_currently_logging(entry):
@@ -30,7 +18,7 @@ def is_not_currently_logging(entry):
     return success(entry)
 
 
-m_is_not_currently_logging = functools.partial(bind, is_not_currently_logging)
+m_is_not_currently_logging = bind(is_not_currently_logging)
 
 
 def is_valid_description(entry):
@@ -48,9 +36,9 @@ def is_valid_description(entry):
     return error(entry, 'Invalid description')
 
 
-m_is_valid_description = functools.partial(bind, is_valid_description)
+m_is_valid_description = bind(is_valid_description)
 
-_validate_one = compose(
+_validate_one = z.compose(
     m_is_not_already_logged,
     m_is_not_currently_logging,
     m_is_valid_description,
@@ -69,3 +57,6 @@ def validate_one(entry):
     :rtype: (dict, str)
     """
     return _validate_one(entry)
+
+
+validate_many = z.curry(z.map, validate_one)
