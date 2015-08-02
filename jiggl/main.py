@@ -41,10 +41,6 @@ class Jiggl(object):
         return self._jira
 
 
-def get_total_duration(data):
-    prefix, entries = data
-    return prefix, sum(e['duration'] for e in entries)
-
 
 def split_description(group):
     description, entries = group
@@ -55,10 +51,6 @@ def split_description(group):
     return (parts[0], ''), entries
 
 
-get_duration = z.get('duration')
-get_description = z.get('description', default='')
-
-
 def print_error_group((err, entries)):
     print
     print bcolors.bold(bcolors.underline(err))
@@ -66,14 +58,14 @@ def print_error_group((err, entries)):
     print
 
 
-log_invalid_entries = z.compose(
+print_invalid_entries = z.compose(
     z.map(print_error_group),
     iteritems,
     z.valmap(z.map(get_val)),
     z.groupby(get_error),
 )
 
-get_valid_invalid = z.get([False, True])
+get_valid_invalid = z.get([False, True], default=[])
 group_by_has_error = z.groupby(has_error)
 
 split_entries = z.compose(
@@ -82,46 +74,79 @@ split_entries = z.compose(
     validate_many,
 )
 
+total_duration = z.compose(sum, z.pluck('duration', default=0))
 
-def group_by_day(entries):
-    """
-    :param entries: entries from the Toggl API
-    :return: list of two-tuples: the day, and the list of entries for the day
-    """
+sum_as_timedelta = lambda entries: timedelta(seconds=total_duration(entries))
 
-def total_duration(entries):
-    return sum(z.map(get_duration, entries))
-
-
-def log_valid_entries(entries):
+def print_valid_entries(entries):
     print bcolors.header(bcolors.underline('\nLogging to Jira\n'))
 
-    groups = z.groupby(get_description, entries)
-    cleaned = map(split_description, groups)
+    # entries = map(get_val, entries)
 
-    for (issue, comment), entries in cleaned:
-        print (bcolors.bold('%-8s') + ' %s') % (
-            timedelta(seconds=total_duration(entries)), bcolors.okblue(issue) + ' ' + comment), [e['id'] for e in
-                                                                                                 entries]
-        # toggl.query('/')
+    groups = z.groupby(z.get('description', default=''), entries)
+    cleaned = map(split_description, groups.iteritems())
 
-    summed = map(get_total_duration, cleaned)
 
-    entry_ids = ','.join(map(str, [e['id'] for e in entries]))
+    for (issue, comment), es in cleaned:
+        print (bcolors.bold('%-8s') + ' %s') % (sum_as_timedelta(es), bcolors.okblue(issue) + ' ' + comment)
+    # entry_ids = ','.join(map(str, [e['id'] for e in entries]))
+
+
+def print_total_for_day(entries):
+    print '-------'
+    print (bcolors.bold('%-8s') + ' Total Time to log for day') % (sum_as_timedelta(entries))
+
+
+
+def make_two_digits(val):
+    val = str(val)
+    if len(val) == 1:
+        val = '0' + val
+    return val
+
+def clean_ymd(year, month, day):
+    year = str(year)
+    assert len(year) == 4
+    month = make_two_digits(month)
+    day = make_two_digits(day)
+    return year, month, day
+
+def get_start_for_date(year, month, day):
+    year, month, day = clean_ymd(year, month, day)
+    return '%s-%s-%sT00:00:00+11:30' % (year, month, day)
+
+def get_end_for_date(year, month, day):
+    year, month, day = clean_ymd(year, month, day)
+    return '%s-%s-%sT23:59:00+11:30' % (year, month, day)
 
 
 
 def main():
-    # toggl = PyToggl(settings.TOGGL_API_TOKEN)
+    toggl = PyToggl(settings.TOGGL_API_TOKEN)
     # jira = JIRA()
-    # entries = toggl.query('/time_entries')
-    entries = get_entries()
 
-    valid_entries, invalid_entries = split_entries(entries)
+    year = '2015'
+    month = '07'
+    def for_day(day):
+        try:
+            entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(year, month, day), 'end_date': get_end_for_date(year, month, day)})
+        except Exception as e:
+            print bcolors.fail(e.response.text)
+            exit()
 
-    log_invalid_entries(invalid_entries)
-    log_valid_entries(valid_entries)
+        valid_entries, invalid_entries = split_entries(entries)
 
+        print 'Logging for day', get_start_for_date(year, month, day).split('T')[0]
+        print_invalid_entries(invalid_entries)
+
+        valid_entries = list(z.map(get_val, valid_entries))
+
+        print_valid_entries(valid_entries)
+        print_total_for_day(valid_entries)
+
+    for d in range(1, 31):
+       for_day(d)
+       raw_input('\nContinue?')
 
     #
 
