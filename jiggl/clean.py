@@ -2,9 +2,10 @@ import re
 import toolz as z
 from jiggl.utils import error, success, bind, unit
 
+JIGGLD_TAG = 'jiggld'
 
 def is_not_already_logged(entry):
-    if 'jiggl' in entry.get('tags', []):
+    if JIGGLD_TAG in entry.get('tags', []):
         return error(entry, 'Already logged')
     return success(entry)
 
