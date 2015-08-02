@@ -20,6 +20,9 @@ from jiggl.colors import bcolors
 from monkey import REMOVE_TAG
 
 
+# https://docs.atlassian.com/jira/REST/ondemand/#api/2/issueLink-linkIssues
+
+
 def get_entries():
     current_path = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(current_path, 'fixtures', 'entries.json')) as f:
@@ -42,6 +45,10 @@ class Jiggl(object):
         if not self._jira:
             self._jira = JIRA(server=settings.JIRA_URL, basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD))
         return self._jira
+
+jiggl = Jiggl()
+toggl = jiggl.toggl
+jira = jiggl.jira
 
 
 def split_description(group):
@@ -125,11 +132,6 @@ def to_tce(entry):
     return TicketCommentEntry(ticket, comment, entry)
 
 
-def prep_comment_for_jira(tce):
-    comment = '%s |togglid:%s|' % (tce.comment, tce.entry['id'])
-    return TicketCommentEntry(tce.ticket, comment, tce.entry)
-
-
 def make_two_digits(val):
     val = str(val)
     if len(val) == 1:
@@ -188,14 +190,115 @@ def print_welcome_for_date(date):
     s += '\n************************************\n'
     print bcolors.warning(s)
 
+OPEN = "1"  # "Open"
+IN_PROGRESS = "3"  # "In Progress"
+REOPENED = "4"  # "Reopened"
+VERIFICATION = "5"  # "Verification / Testing"
+COMPLETE = "6"  # "Complete / Done"
+DONE = "10100"  # "Done"
+IN_REVIEW = "10101"  # "In Review"
+TO_DO = "10102"  # "To Do"
+VERIFIED = "10200"  # "Verified / Ready to Deploy"
+
+
+def _get_transition_id(status, ticket):
+    """
+
+    :param status:
+    :param ticket:
+    :return:
+    """
+    raw_transitions = jira.transitions(ticket)
+    transitions = list(z.filter(lambda transition: z.get_in(['to', 'id'], transition) == status, raw_transitions))
+    assert len(transitions) == 1
+    return transitions[0]['id']
+
+get_transition_id = z.curry(_get_transition_id)
+reopen_transition = get_transition_id(REOPENED)
+
+def add_worklog(tce):
+    def log():
+        started = toggl_strptime(tce.entry['start'])
+        return jira.add_worklog(
+            tce.ticket,
+            timeSpentSeconds=tce.entry['duration'],
+            comment=tce.comment,
+            started=started,
+        )
+
+    try:
+        worklog = log()
+    except JIRAError as e:
+        ticket = jira.issue(tce.ticket)
+
+        status_id = ticket.fields.status.id
+        if status_id != COMPLETE:
+            raise Exception('Invalid status %s' % status_id)
+
+        reclose_transition = get_transition_id(status_id)
+
+        jira.transition_issue(ticket, reopen_transition(ticket))
+        worklog = log()
+        jira.transition_issue(ticket, reclose_transition(ticket))
+    return worklog
+
+logfile = settings.records_filepath
+
+# TODO: Add records in a sensible fashion instead of a giant json file. Maybe sqlite?
+def get_records():
+    """
+    Records are stored as a hash:
+        {
+            "<toggl_id>": {
+                "jira_ticket": "SARR-156",
+                "worklog_id": "<jira_id>",
+                "logged": "<datetime>"
+            },
+        }
+    :return:
+    """
+    if not os.path.isfile(logfile):
+        print 'Creating logfile'
+        with open(logfile, 'w') as fo:
+            json.dump({}, fo)
+
+    with open(logfile) as f:
+        return json.load(f)
+
+def save_records(records):
+    with open(logfile, 'w') as fo:
+        json.dump(records, fo, indent=2)
+
+def record_worklog(tce, worklog_id):
+    """
+    :param tce:
+    :type tce: TicketCommentEntry
+    :param worklog: jira.resources.Worklog
+    :return:
+    """
+    records = get_records()
+    if tce.ticket in records:
+        raise Exception('This Toggl entry already has a jira worklog entry')
+    records[tce.ticket] = {
+        'jira_ticket': tce.ticket,
+        'worklog_id': worklog_id,
+        'logged': datetime.utcnow().isoformat()
+    }
+    save_records(records)
+
 
 def main():
-    jiggl = Jiggl()
-    toggl = jiggl.toggl
-    jira = jiggl.jira
+
+    # print jira.add_worklog('SARR-156', timeSpentSeconds=60, comment='Test!')
+    # exit()
 
     year = 2015
     month = 07
+    #
+    # t = TicketCommentEntry('SARR-156', 'test', {'duration': 122})
+    # add_worklog(t)
+    # exit()
+
 
     def clear_all_tags(day):
         print 'Clearing tags for day', day,
@@ -240,16 +343,28 @@ def main():
         logged_entries = []  # the tickets on Toggl that need to be marked as jiggld
 
         try:
-            for tce in z.map(z.compose(prep_comment_for_jira, to_tce), valid_entries):
+            for tce in z.map(to_tce, valid_entries):
                 print_jira_preflight(tce)
 
+                worklog = add_worklog(tce)
+                logged_entries.append(tce.entry)
+                print 'WORKLOG ID', worklog.id
+                record_worklog(tce, worklog.id)
                 print_jira_postflight(tce, None)
 
-                logged_entries.append(tce.entry)
+                if raw_input('Good?') != '':
+                    print bcolors.fail('Exiting')
+                    exit()
+
         except JIRAError as e:
+            if 'non-edi1table workflow state' in str(e):
+                print bcolors.fail('CANNOT EDIT!')
+                exit()
             print bcolors.fail(str(e))
+            raise
         except Exception as e:
             print bcolors.fail(str(e))
+            raise
         finally:
             if logged_entries:
                 print 'Marking %s Toggl entries as tagged' % (len(logged_entries))
@@ -262,7 +377,6 @@ def main():
         # clear_all_tags(d)
 
     exit()
-    jira.add_worklog('SARR-128', timeSpentSeconds=60, comment='Test!')
 
 
 if __name__ == '__main__':

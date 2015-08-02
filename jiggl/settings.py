@@ -1,7 +1,10 @@
 import json
 import os
 
-settings_filepath = os.path.join(os.path.expanduser('~'), '.jiggl')
+jiggldir = os.path.join(os.path.expanduser('~'), '.jiggl')
+settings_filepath = os.path.join(jiggldir, '.auth')
+records_filepath = os.path.join(jiggldir, 'records.json')
+
 
 if os.path.lexists(settings_filepath):
     with open(settings_filepath) as f:
