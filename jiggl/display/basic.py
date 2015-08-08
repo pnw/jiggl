@@ -1,10 +1,9 @@
 from datetime import timedelta
 from toolz.compatibility import iteritems
-from clean import split_description
-from colors import bcolors
-import curried_toolz as z
-from main import sum_as_timedelta
-from utils import get_val, get_error
+from jiggl.clean import split_description, sum_as_timedelta
+from jiggl.colors import bcolors
+from jiggl import curried_toolz as z
+from jiggl.utils import get_val, get_error
 
 
 def print_error_group((err, entries)):

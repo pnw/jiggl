@@ -1,9 +1,9 @@
 from contextlib import contextmanager
-from jira import JIRAError
-from colors import bcolors
-import curried_toolz as z
-from main import jira
-from toggl import toggl_strptime
+from jira import JIRAError, JIRA
+from jiggl.colors import bcolors
+from jiggl import curried_toolz as z
+from jiggl.sources.ggl import toggl_strptime
+from jiggl import settings
 
 OPEN = "1"  # "Open"
 IN_PROGRESS = "3"  # "In Progress"
@@ -15,6 +15,7 @@ IN_REVIEW = "10101"  # "In Review"
 TO_DO = "10102"  # "To Do"
 VERIFIED = "10200"  # "Verified / Ready to Deploy"
 
+jira = JIRA(server=settings.JIRA_URL, basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD))
 
 def _get_transition_id(status, ticket):
     """

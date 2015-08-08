@@ -1,8 +1,12 @@
+from datetime import timedelta
 import re
-import toolz as z
-from jiggl.utils import error, success, bind, unit
 
-JIGGLD_TAG = 'jiggld'
+import curried_toolz as z
+from jiggl.utils import error, success, bind, unit
+from sources.ggl import toggl_strptime, JIGGLD_TAG
+from sources.ji import jira_strftime
+from utils import has_error
+
 
 def is_not_already_logged(entry):
     if JIGGLD_TAG in entry.get('tags', []):
@@ -92,3 +96,18 @@ def _split_description(description):
     if len(parts) > 1:
         return tuple(parts)
     return description, ''
+
+
+sum_as_timedelta = lambda entries: timedelta(seconds=total_duration(entries))
+total_duration = z.compose(sum, z.pluck('duration', default=0))
+toggl_to_jira_datefmt = z.compose(
+    jira_strftime,
+    toggl_strptime,
+)
+get_valid_invalid = z.get([False, True], default=[])
+group_by_has_error = z.groupby(has_error)
+split_entries = z.compose(
+    get_valid_invalid,
+    group_by_has_error,
+    validate_many,
+)

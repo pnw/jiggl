@@ -5,8 +5,7 @@ from PyToggl.PyToggl import PyToggl
 from cliff.command import Command
 from requests.exceptions import HTTPError
 
-from sources.jira import JIRA
-from sources.jira import JIRAError
+from jira import JIRA, JIRAError
 from jiggl.colors import bcolors
 from jiggl.settings import settings_filepath
 from utils import clear_screen

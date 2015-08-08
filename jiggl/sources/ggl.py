@@ -1,9 +1,10 @@
 from dateutil import parser as dtparser
-from clean import JIGGLD_TAG
-from colors import bcolors
-import curried_toolz as z
-from main import toggl
-from monkey import REMOVE_TAG
+from jiggl.colors import bcolors
+from jiggl import curried_toolz as z
+from jiggl.monkey import REMOVE_TAG, Toggl
+from jiggl import settings
+
+toggl = Toggl(settings.TOGGL_API_TOKEN)
 
 
 def toggl_strptime(datestring):
@@ -33,3 +34,6 @@ def clear_all_tags(dt):
     else:
         resp = toggl.update_tags(ids, [JIGGLD_TAG, 'jiggggld'], REMOVE_TAG)
         print list(z.pluck('tags', resp['data'], default=[]))
+
+
+JIGGLD_TAG = 'jiggld'

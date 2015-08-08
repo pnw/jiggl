@@ -1,27 +1,19 @@
 import json
 import os
 from datetime import timedelta, datetime
-
-from sources.jira import JIRAError
-from sources.jira import JIRA, ensure_open_ticket, add_worklog, jira_strftime
-from clean import JIGGLD_TAG
+from jira import JIRAError
+from sources.ji import ensure_open_ticket, add_worklog
+from clean import split_entries
 import curried_toolz as z
 from display.basic import print_invalid_entries, print_valid_entries, print_total_for_day, print_jira_preflight, \
     print_jira_postflight, print_welcome_for_date
-from jiggl.clean import validate_many
-from jiggl.monkey import Toggl
-from jiggl.utils import has_error, clear_screen, get_val
-from jiggl import settings
+from jiggl.utils import clear_screen, get_val
 from jiggl.colors import bcolors
-from logging import record_worklog
+from logger import record_worklog
 from model import to_tce
 
-
-
-
-
 # https://docs.atlassian.com/jira/REST/ondemand/#api/2/issueLink-linkIssues
-from sources.toggl import toggl_strptime, get_end_for_date, get_start_for_date
+from sources.ggl import get_end_for_date, get_start_for_date, toggl, JIGGLD_TAG
 
 
 def get_entries():
@@ -30,52 +22,11 @@ def get_entries():
         return json.load(f)
 
 
-class Jiggl(object):
-    def __init__(self):
-        self.toggl = Toggl(settings.TOGGL_API_TOKEN)
-
-    _jira = None
-
-    @property
-    def jira(self):
-        """
-        Lazy-load the JIRA client, because it makes a bunch of requests when you instantiate the class
-        because that's cool to do right?
-        :rtype: JIRA
-        """
-        if not self._jira:
-            self._jira = JIRA(server=settings.JIRA_URL, basic_auth=(settings.JIRA_USERNAME, settings.JIRA_PASSWORD))
-        return self._jira
-
-
-jiggl = Jiggl()
-toggl = jiggl.toggl
-jira = jiggl.jira
-
-get_valid_invalid = z.get([False, True], default=[])
-group_by_has_error = z.groupby(has_error)
-
-split_entries = z.compose(
-    get_valid_invalid,
-    group_by_has_error,
-    validate_many,
-)
-
-total_duration = z.compose(sum, z.pluck('duration', default=0))
-
-sum_as_timedelta = lambda entries: timedelta(seconds=total_duration(entries))
-
-toggl_to_jira_datefmt = z.compose(
-    jira_strftime,
-    toggl_strptime,
-)
-
 
 # TODO: Add records in a sensible fashion instead of a giant json file. Maybe sqlite?
 
 
 def for_day(dt):
-
     print_welcome_for_date(dt)
     entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(dt),
                                                    'end_date': get_end_for_date(dt)})
@@ -106,8 +57,8 @@ def for_day(dt):
         for ticked_id, tces in tces.iteritems():
             for tce in tces:
                 print_jira_preflight(tce)
-                continue
                 with ensure_open_ticket(ticked_id):
+                    continue
                     worklog = add_worklog(tce)
                     logged_entries.append(tce.entry)
                     # print 'WORKLOG ID', worklog.id
