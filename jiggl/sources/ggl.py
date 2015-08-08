@@ -1,6 +1,6 @@
 from dateutil import parser as dtparser
 
-from globs import toggl
+from jiggl.globs import toggl
 from jiggl.colors import bcolors
 from jiggl import curried_toolz as z
 from jiggl.monkey import REMOVE_TAG

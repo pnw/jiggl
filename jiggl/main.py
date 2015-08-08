@@ -14,7 +14,7 @@ from model import to_tce
 
 # https://docs.atlassian.com/jira/REST/ondemand/#api/2/issueLink-linkIssues
 from sources.ggl import get_end_for_date, get_start_for_date, JIGGLD_TAG
-from globs import toggl
+from jiggl.globs import toggl
 
 
 def get_entries():

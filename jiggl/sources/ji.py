@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from jira import JIRAError
-from globs import jira
+from jiggl.globs import jira
 from jiggl.colors import bcolors
 from jiggl import curried_toolz as z
 from jiggl.sources.ggl import toggl_strptime
