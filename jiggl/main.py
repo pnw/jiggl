@@ -1,4 +1,5 @@
 from collections import namedtuple
+from contextlib import contextmanager
 import json
 import os
 
@@ -147,14 +148,13 @@ def clean_ymd(year, month, day):
     return year, month, day
 
 
-def get_start_for_date(year, month, day):
-    year, month, day = clean_ymd(year, month, day)
-    return '%s-%s-%sT00:00:00+12:00' % (year, month, day)
+def get_start_for_date(dt):
+    # can pass a datetime or date
+    return '%sT00:00:00+12:00' % (dt.isoformat().split('T')[0])
 
 
-def get_end_for_date(year, month, day):
-    year, month, day = clean_ymd(year, month, day)
-    return '%s-%s-%sT23:59:00+12:00' % (year, month, day)
+def get_end_for_date(dt):
+    return '%sT23:59:00+12:00' % (dt.isoformat().split('T')[0])
 
 
 def toggl_strptime(datestring):
@@ -233,7 +233,8 @@ def add_worklog(tce):
 
         status_id = ticket.fields.status.id
         if status_id != COMPLETE:
-            raise Exception('Invalid status %s' % status_id)
+            print bcolors.fail('Invalid status %s' % status_id)
+            raise
 
         reclose_transition = get_transition_id(status_id)
 
@@ -241,6 +242,32 @@ def add_worklog(tce):
         worklog = log()
         jira.transition_issue(ticket, reclose_transition(ticket))
     return worklog
+
+@contextmanager
+def ensure_open_ticket(ticket_id):
+    """
+    Allows us to reopen a ticket once, and log against it a bunch of times.
+    :param ticket_id:
+    :return:
+    """
+    # TODO: This gives race conditions if someone updates a ticket while we are logging time.
+    ticket = jira.issue(ticket_id)
+    status_id = ticket.fields.status.id
+
+    if status_id == COMPLETE:
+        reclose_transition = get_transition_id(status_id)
+        jira.transition_issue(ticket, reopen_transition(ticket))
+        print bcolors.warning('Reopening ticket')
+        try:
+            yield
+        finally:
+            print bcolors.warning('Reclosing ticket')
+            jira.transition_issue(ticket, reclose_transition(ticket))
+    else:
+        # ticket is in a mutable state on jira, so we can just log away
+        yield
+
+
 
 logfile = settings.records_filepath
 
@@ -279,7 +306,7 @@ def record_worklog(tce, worklog_id):
     records = get_records()
     if tce.ticket in records:
         raise Exception('This Toggl entry already has a jira worklog entry')
-    records[tce.ticket] = {
+    records[tce.entry['id']] = {
         'jira_ticket': tce.ticket,
         'worklog_id': worklog_id,
         'logged': datetime.utcnow().isoformat()
@@ -292,18 +319,16 @@ def main():
     # print jira.add_worklog('SARR-156', timeSpentSeconds=60, comment='Test!')
     # exit()
 
-    year = 2015
-    month = 07
     #
     # t = TicketCommentEntry('SARR-156', 'test', {'duration': 122})
     # add_worklog(t)
     # exit()
 
 
-    def clear_all_tags(day):
-        print 'Clearing tags for day', day,
-        entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(year, month, day),
-                                                       'end_date': get_end_for_date(year, month, day)})
+    def clear_all_tags(dt):
+        print 'Clearing tags for day', dt.isoformat(),
+        entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(dt),
+                                                       'end_date': get_end_for_date(dt)})
 
         # entries = z.filter(lambda e: JIGGLD_TAG in z.get('tags', e, []), entries)
         ids = list(z.pluck('id', entries))
@@ -315,11 +340,11 @@ def main():
             resp = toggl.update_tags(ids, [JIGGLD_TAG, 'jiggggld'], REMOVE_TAG)
             print list(z.pluck('tags', resp['data'], default=[]))
 
-    def for_day(day):
+    def for_day(dt):
 
-        print_welcome_for_date(datetime(year, month, day))
-        entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(year, month, day),
-                                                       'end_date': get_end_for_date(year, month, day)})
+        print_welcome_for_date(dt)
+        entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(dt),
+                                                       'end_date': get_end_for_date(dt)})
 
         valid_entries, invalid_entries = split_entries(entries)
 
@@ -327,34 +352,38 @@ def main():
         valid_entries = list(z.map(get_val, valid_entries))
         if len(valid_entries) == 0:
             print bcolors.okblue('No time entries to log for today')
-            if not raw_input('\nContinue? (Y/n)') in ('Y', 'y', ''):
-                exit()
+            # if not raw_input('\nContinue? (Y/n)') in ('Y', 'y', ''):
+            #     exit()
             return
 
         print_valid_entries(valid_entries)
         print_total_for_day(valid_entries)
 
-        if raw_input('\nLog time? (Y/n)') not in ('Y', 'y', ''):
-            print bcolors.fail('Will not log time. Exiting')
-            exit()
+        # if raw_input('\nLog time? (Y/n)') not in ('Y', 'y', ''):
+        #     print bcolors.fail('Will not log time. Exiting')
+        #     exit()
 
         print
 
         logged_entries = []  # the tickets on Toggl that need to be marked as jiggld
 
+        tces = z.groupby(lambda tce: tce.ticket, z.map(to_tce, valid_entries))
         try:
-            for tce in z.map(to_tce, valid_entries):
-                print_jira_preflight(tce)
+            for ticked_id, tces in tces.iteritems():
+                for tce in tces:
 
-                worklog = add_worklog(tce)
-                logged_entries.append(tce.entry)
-                print 'WORKLOG ID', worklog.id
-                record_worklog(tce, worklog.id)
-                print_jira_postflight(tce, None)
+                    print_jira_preflight(tce)
 
-                if raw_input('Good?') != '':
-                    print bcolors.fail('Exiting')
-                    exit()
+                    with ensure_open_ticket(ticked_id):
+                        worklog = add_worklog(tce)
+                        logged_entries.append(tce.entry)
+                        # print 'WORKLOG ID', worklog.id
+                        record_worklog(tce, worklog.id)
+                        print_jira_postflight(tce, None)
+
+                    # if raw_input('Good?') != '':
+                    #     print bcolors.fail('Exiting')
+                    #     exit()
 
         except JIRAError as e:
             if 'non-edi1table workflow state' in str(e):
@@ -372,8 +401,10 @@ def main():
             else:
                 print 'No Toggl entries to tag as jiggld'
 
-    for d in range(1, 31):
-        for_day(d)
+    for_day((datetime.now() - timedelta(days=1)).date())
+    # for_day(31)
+    # for d in range(1, 4 + 1):
+    #     for_day(d)
         # clear_all_tags(d)
 
     exit()

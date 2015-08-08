@@ -39,7 +39,22 @@ def is_valid_description(entry):
 
 m_is_valid_description = bind(is_valid_description)
 
+
+def has_significant_duration(entry):
+    """
+    If a duration is too small, then jira doesn't like it. Plus, there's no reason to log it...
+    :param entry:
+    :return:
+    """
+    duration = entry['duration']
+    if duration < 60 * 5:
+        return error(entry, 'Duration is too small: %s seconds' % duration)
+    return success(entry)
+
+m_has_significant_duration = bind(has_significant_duration)
+
 _validate_one = z.compose(
+    m_has_significant_duration,
     m_is_not_already_logged,
     m_is_not_currently_logging,
     m_is_valid_description,
