@@ -45,9 +45,9 @@ def for_day(dt):
     print_valid_entries(valid_entries)
     print_total_for_day(valid_entries)
 
-    # if raw_input('\nLog time? (Y/n)') not in ('Y', 'y', ''):
-    #     print bcolors.fail('Will not log time. Exiting')
-    #     exit()
+    if raw_input('\nLog time? (Y/n)') not in ('Y', 'y', ''):
+        print bcolors.fail('Will not log time. Exiting')
+        exit()
 
     print
 
@@ -60,11 +60,11 @@ def for_day(dt):
                 print_jira_preflight(tce)
                 with ensure_open_ticket(ticked_id):
                     # continue
-                    # worklog = add_worklog(tce)
-                    print tce.entry['id']
-                    # logged_entries.append(tce.entry)
-                    # print 'WORKLOG ID', worklog.id
-                    # record_worklog(tce, worklog.id)
+                    worklog = add_worklog(tce)
+                    # print tce.entry['id']
+                    logged_entries.append(tce.entry)
+                    print 'WORKLOG ID', worklog.id
+                    record_worklog(tce, worklog.id)
                     print_jira_postflight(tce, None)
 
                     # if raw_input('Good?') != '':

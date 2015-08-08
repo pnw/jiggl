@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+from cliff.command import Command
 from jiggl import main
 from jiggl.commands.base import BaseLogCommand
 
@@ -21,11 +22,17 @@ class LogToday(BaseLogCommand):
     """Just logs today"""
 
 
-class SimpleLog(BaseLogCommand):
+class SimpleLog(Command):
     "A simple command that prints a message."
 
     log = logging.getLogger(__name__)
 
+    def get_parser(self, prog_name):
+        parser = super(SimpleLog, self).get_parser(prog_name)
+        strpdate = lambda val: datetime.strptime(val, '%Y-%m-%d').date()
+        parser.add_argument('day', nargs='?', default=datetime.now().date(), type=strpdate)
+        return parser
+
     def take_action(self, parsed_args):
-        main.for_day(datetime.now().date())
+        main.for_day(parsed_args.day)
 
