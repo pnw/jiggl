@@ -1,10 +1,9 @@
 from dateutil import parser as dtparser
+
+from globs import toggl
 from jiggl.colors import bcolors
 from jiggl import curried_toolz as z
-from jiggl.monkey import REMOVE_TAG, Toggl
-from jiggl import settings
-
-toggl = Toggl(settings.TOGGL_API_TOKEN)
+from jiggl.monkey import REMOVE_TAG
 
 
 def toggl_strptime(datestring):
