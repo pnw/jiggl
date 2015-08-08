@@ -76,3 +76,19 @@ def validate_one(entry):
 
 
 validate_many = z.curry(z.map, validate_one)
+
+
+def split_description(group):
+    description, entries = group
+    parts = description.split(' ', 1)
+    # Allow for descriptions with a Jira task identifier but no accomanying description
+    if len(parts) > 1:
+        return parts, entries
+    return (parts[0], ''), entries
+
+
+def _split_description(description):
+    parts = description.split(' ', 1)
+    if len(parts) > 1:
+        return tuple(parts)
+    return description, ''

@@ -3,10 +3,10 @@ import os
 
 from PyToggl.PyToggl import PyToggl
 from cliff.command import Command
-from jira import JIRA
-from jira.utils import JIRAError
 from requests.exceptions import HTTPError
 
+from sources.jira import JIRA
+from sources.jira import JIRAError
 from jiggl.colors import bcolors
 from jiggl.settings import settings_filepath
 from utils import clear_screen

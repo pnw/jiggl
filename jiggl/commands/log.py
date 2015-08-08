@@ -1,5 +1,6 @@
+from datetime import datetime
 import logging
-from jiggl.main import main
+from jiggl import main
 from jiggl.commands.base import BaseLogCommand
 
 
@@ -26,4 +27,5 @@ class SimpleLog(BaseLogCommand):
     log = logging.getLogger(__name__)
 
     def take_action(self, parsed_args):
-        main()
+        main.for_day(datetime.now().date())
+
