@@ -5,6 +5,7 @@ from jiggl.colors import bcolors
 from jiggl import curried_toolz as z
 from jiggl.sources.ggl import toggl_strptime
 
+
 OPEN = "1"  # "Open"
 IN_PROGRESS = "3"  # "In Progress"
 REOPENED = "4"  # "Reopened"

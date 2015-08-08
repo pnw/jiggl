@@ -59,11 +59,12 @@ def for_day(dt):
             for tce in tces:
                 print_jira_preflight(tce)
                 with ensure_open_ticket(ticked_id):
-                    continue
-                    worklog = add_worklog(tce)
-                    logged_entries.append(tce.entry)
+                    # continue
+                    # worklog = add_worklog(tce)
+                    print tce.entry['id']
+                    # logged_entries.append(tce.entry)
                     # print 'WORKLOG ID', worklog.id
-                    record_worklog(tce, worklog.id)
+                    # record_worklog(tce, worklog.id)
                     print_jira_postflight(tce, None)
 
                     # if raw_input('Good?') != '':
