@@ -3,6 +3,7 @@ import logging
 from cliff.command import Command
 from jiggl import main
 from jiggl.commands.base import BaseLogCommand
+from jiggl.sources.ggl import clear_all_tags
 
 
 class LogSince(BaseLogCommand):
@@ -36,3 +37,6 @@ class SimpleLog(Command):
     def take_action(self, parsed_args):
         main.for_day(parsed_args.day)
 
+class ClearLog(SimpleLog):
+    def take_action(self, parsed_args):
+        clear_all_tags(parsed_args.day)

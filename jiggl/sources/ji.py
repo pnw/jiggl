@@ -19,9 +19,9 @@ VERIFIED = "10200"  # "Verified / Ready to Deploy"
 
 def _get_transition_id(status, ticket):
     """
-
-    :param status:
-    :param ticket:
+    Returns the Jira id for the transition that will move the ticket to the requested status
+    :param status: ID of the desired status after the transition
+    :param ticket: a ticket id or Issue
     :return:
     """
     raw_transitions = jira.transitions(ticket)

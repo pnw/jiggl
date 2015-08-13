@@ -45,7 +45,7 @@ def for_day(dt):
     print_valid_entries(valid_entries)
     print_total_for_day(valid_entries)
 
-    if raw_input('\nLog time? (Y/n)') not in ('Y', 'y', ''):
+    if raw_input('\nLog time? (Y/n) ') not in ('Y', 'y', ''):
         print bcolors.fail('Will not log time. Exiting')
         exit()
 
@@ -60,7 +60,14 @@ def for_day(dt):
                 print_jira_preflight(tce)
                 with ensure_open_ticket(ticked_id):
                     # continue
-                    worklog = add_worklog(tce)
+                    try:
+                        worklog = add_worklog(tce)
+                    except JIRAError as e:
+                        if 'non-editable workflow state' in str(e):
+                            print bcolors.fail('CANNOT EDIT!')
+                            exit()
+                        print bcolors.fail(str(e))
+                        continue
                     # print tce.entry['id']
                     logged_entries.append(tce.entry)
                     print 'WORKLOG ID', worklog.id
@@ -70,13 +77,6 @@ def for_day(dt):
                     # if raw_input('Good?') != '':
                     #     print bcolors.fail('Exiting')
                     #     exit()
-
-    except JIRAError as e:
-        if 'non-edi1table workflow state' in str(e):
-            print bcolors.fail('CANNOT EDIT!')
-            exit()
-        print bcolors.fail(str(e))
-        raise
     except Exception as e:
         print bcolors.fail(str(e))
         raise

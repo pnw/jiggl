@@ -20,7 +20,7 @@ def get_start_for_date(dt):
 
 
 def clear_all_tags(dt):
-    print 'Clearing tags for day', dt.isoformat(),
+    print 'Clearing tags for day', dt.isoformat()
     entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(dt),
                                                    'end_date': get_end_for_date(dt)})
 

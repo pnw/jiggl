@@ -60,6 +60,7 @@ setup(
             'log day = jiggl.commands.log:SimpleLog',
             'log week = jiggl.commands.log:SimpleLog',
             'log range = jiggl.commands.log:SimpleLog',
+            'clear toggl day = jiggl.commands.log:ClearLog',
 
         ],
     },
