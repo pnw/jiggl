@@ -26,11 +26,17 @@ def get_entries():
 
 # TODO: Add records in a sensible fashion instead of a giant json file. Maybe sqlite?
 
+def replace_cologne(entry):
+    entry['description'] = entry.get('description', '').replace(': ', ' ').replace(':', ' ')
+    return entry
+
 
 def for_day(dt):
     print_welcome_for_date(dt)
     entries = toggl.query('/time_entries', params={'start_date': get_start_for_date(dt),
                                                    'end_date': get_end_for_date(dt)})
+
+    entries = z.map(replace_cologne, entries)
 
     valid_entries, invalid_entries = split_entries(entries)
 
