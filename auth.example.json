@@ -1,0 +1,6 @@
+{
+    "jira_password": "", 
+    "jira_username": "", 
+    "jira_url": "https://my-subdomain.atlassian.net", 
+    "toggl_api_token": ""
+}
