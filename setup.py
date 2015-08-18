@@ -53,6 +53,7 @@ setup(
         ],
         'jiggl.app': [
             'login = jiggl.commands.login:Login',
+            'logout = jiggl.commands.login:Logout',
             'curse = jiggl.commands.curse:Curse',
             'view day = jiggl.commands.log:SimpleLog',
             'view week = jiggl.commands.log:SimpleLog',

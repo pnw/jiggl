@@ -145,3 +145,19 @@ class Login(Command):
 
     def take_action(self, parsed_args):
         Credentials().run()
+
+class Logout(Command):
+    """
+    Reset the user credentials
+    """
+    def take_action(self, parsed_args):
+        print bcolors.warning('Deleting %s' % settings_filepath)
+        if raw_input('Are you sure? (y/N) ').upper() == 'Y':
+            try:
+                os.remove(settings_filepath)
+            except OSError:
+                pass
+            print 'Done'
+        else:
+            print bcolors.fail('Cancel logout')
+
