@@ -36,7 +36,7 @@ def is_valid_description(entry):
         description = entry['description']
     except KeyError:
         return error(entry, 'Missing description')
-    if any(re.match(r'%s-[\d]+.*' % pkey, description) for pkey in ['SARR', 'TIMPA', 'MS', 'CGFM', 'MDC']):
+    if re.match(r'[A-Z]+-[\d]+', description):
         return success(entry)
     return error(entry, 'Invalid description')
 
