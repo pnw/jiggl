@@ -1,6 +1,4 @@
-click==4.0
 cliff==1.13.0
-cliffdemo==0.1
 cmd2==0.6.8
 gnureadline==6.3.3
 ipdb==0.8.1
